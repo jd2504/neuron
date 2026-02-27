@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:discuss.ai.google.dev)",
+      "WebSearch",
+      "WebFetch(domain:geminibyexample.com)",
+      "WebFetch(domain:docs.trychroma.com)",
+      "WebFetch(domain:googleapis.github.io)"
+    ]
+  }
+}

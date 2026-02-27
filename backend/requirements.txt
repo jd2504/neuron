@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+google-genai
+anthropic
+pymupdf
+sentence-transformers
+chromadb
+rank-bm25
+python-dotenv
+pydantic
+sse-starlette
