@@ -1,0 +1,19 @@
+#+title:hebbot 0.1
+#+author:joel deerwester, 2026
+
+* Overview
+*hebbot* is an Emacs-based neuroscience learning tool that started off as a Claude Code experiment and spun out of control. It requires the hebbot FastAPI backend running on a localhost. I's morphed into a RAG-backed study assistant that sits on top of these three textbooks:
+1. Kandel et al. (2013), /Principles of Neural Science/ (5th Ed.)
+2. Gazzaniga et al. (2019), /Cognitive Neuroscience: The Biology of the Mind/ (5th Ed.)
+3. Purves et al. (2018), /Neuroscience/ (6th Ed.)
+
+*Usage:*
+  M-x hebbot          Open the chat buffer
+  M-x hebbot-ingest   Ingest a PDF into the knowledge base
+In the chat buffer:
+  RET       Send input
+  C-j       Insert newline
+  C-c C-m   Switch study mode
+  C-c C-s   Show session stats
+  C-c C-c   Abort streaming response
+  q         Quit (in conversation area) / self-insert (in input area)
