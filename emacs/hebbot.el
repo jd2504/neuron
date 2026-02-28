@@ -103,6 +103,15 @@
 (defvar-local hebbot--stream-insert-marker nil
   "Marker where streaming tokens are inserted (advances with each token).")
 
+(defvar-local hebbot--thinking-timer nil
+  "Timer driving the thinking animation.")
+
+(defvar-local hebbot--thinking-overlay nil
+  "Overlay displaying the action potential thinking animation.")
+
+(defvar-local hebbot--thinking-frame-index 0
+  "Current frame index in the thinking animation.")
+
 ;;; --- Keymap ---
 
 (defvar hebbot-mode-map
@@ -118,11 +127,18 @@
 
 ;;; --- Major mode ---
 
-(define-derived-mode hebbot-mode fundamental-mode "Hebbot"
+(define-derived-mode hebbot-mode org-mode "Hebbot"
   "Major mode for the Hebbot neuroscience study assistant.
 
 \\{hebbot-mode-map}"
   (setq hebbot--current-mode hebbot-default-mode)
+  (visual-line-mode 1)
+  (setq-local org-startup-indented nil)
+  (setq-local org-startup-folded nil)
+  (font-lock-add-keywords nil
+    '(("^you: " 0 'hebbot-user-face t)
+      ("^hebbot: " 0 'hebbot-assistant-face t))
+    'append)
   (setq-local mode-line-format
               '(" " mode-name
                 " [" (:eval hebbot--current-mode) "]"

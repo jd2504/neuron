@@ -22,6 +22,9 @@
 (defvar hebbot--streaming-p)
 (defvar hebbot--curl-process)
 (defvar hebbot--stream-insert-marker)
+(defvar hebbot--thinking-timer)
+(defvar hebbot--thinking-overlay)
+(defvar hebbot--thinking-frame-index)
 
 ;;; --- Buffer initialization ---
 
@@ -66,38 +69,99 @@
 
 ;;; --- Conversation rendering ---
 
-(defun hebbot-ui--insert-user-message (text)
-  "Insert user message TEXT above the input area, read-only."
+(defun hebbot-ui--make-title (question)
+  "Derive a short org heading title from QUESTION (first 6 words)."
+  (let* ((clean (string-trim (replace-regexp-in-string "\\?+$" "" question)))
+         (words (split-string clean "[ \t\n]+" t))
+         (title (mapconcat #'identity (seq-take words 6) " ")))
+    (if (> (length clean) (length title))
+        (concat title "\u2026")
+      title)))
+
+(defun hebbot-ui--insert-user-message (title text)
+  "Insert org heading TITLE and colored user TEXT above the input area."
   (let ((inhibit-read-only t))
     (save-excursion
       (goto-char hebbot--input-marker)
-      (insert (propertize (concat "\n" (propertize "[You]" 'face 'hebbot-user-face)
-                                  "\n" text "\n")
+      (insert (propertize (concat "\n\n** " title "\n")
+                          'read-only t
+                          'rear-nonsticky '(read-only))
+              (propertize "you: "
+                          'face 'hebbot-user-face
+                          'read-only t
+                          'rear-nonsticky '(read-only))
+              (propertize (concat text "\n\n")
                           'read-only t
                           'rear-nonsticky '(read-only)))
       (set-marker hebbot--input-marker (point)))))
 
 (defun hebbot-ui--begin-assistant-message ()
-  "Insert the assistant header and set up the stream insert marker."
+  "Insert the colored Hebbot label and set up the stream insert marker."
   (let ((inhibit-read-only t))
     (save-excursion
       (goto-char hebbot--input-marker)
-      ;; Header
-      (insert (propertize (concat "\n" (propertize "[Hebbot]" 'face 'hebbot-assistant-face)
-                                  "\n")
+      (insert (propertize "hebbot: "
+                          'face 'hebbot-assistant-face
                           'read-only t
                           'rear-nonsticky '(read-only)))
-      ;; Trailing newline to separate streaming area from prompt
       (let ((stream-pos (point)))
         (insert (propertize "\n" 'read-only t 'rear-nonsticky '(read-only)))
-        ;; Input marker moves to just before "> "
         (set-marker hebbot--input-marker (point))
-        ;; Stream insert marker: tokens go right before the trailing \n
         (setq hebbot--stream-insert-marker (copy-marker stream-pos t))))))
+
+;;; --- Thinking animation ---
+
+(defconst hebbot-ui--thinking-frames
+  (let ((width 10) frames)
+    (dotimes (i (1- width))
+      (push (concat (make-string i ?\u2500) "\u2571\u2572"
+                    (make-string (- width 2 i) ?\u2500))
+            frames))
+    (nreverse frames))
+  "Action potential animation frames (spike propagating rightward).")
+
+(defun hebbot-ui--start-thinking ()
+  "Start the action potential thinking animation at the stream insert marker."
+  (hebbot-ui--stop-thinking)
+  (when hebbot--stream-insert-marker
+    (setq hebbot--thinking-overlay
+          (make-overlay hebbot--stream-insert-marker hebbot--stream-insert-marker))
+    (setq hebbot--thinking-frame-index 0)
+    (overlay-put hebbot--thinking-overlay 'after-string
+                 (propertize (nth 0 hebbot-ui--thinking-frames) 'face 'shadow))
+    (let ((buf (current-buffer)))
+      (setq hebbot--thinking-timer
+            (run-at-time 0.12 0.12
+                         (lambda ()
+                           (when (buffer-live-p buf)
+                             (with-current-buffer buf
+                               (hebbot-ui--thinking-tick)))))))))
+
+(defun hebbot-ui--thinking-tick ()
+  "Advance the thinking animation by one frame."
+  (when hebbot--thinking-overlay
+    (setq hebbot--thinking-frame-index
+          (mod (1+ hebbot--thinking-frame-index)
+               (length hebbot-ui--thinking-frames)))
+    (overlay-put hebbot--thinking-overlay 'after-string
+                 (propertize (nth hebbot--thinking-frame-index
+                                  hebbot-ui--thinking-frames)
+                             'face 'shadow))))
+
+(defun hebbot-ui--stop-thinking ()
+  "Stop the thinking animation and remove the overlay."
+  (when hebbot--thinking-timer
+    (cancel-timer hebbot--thinking-timer)
+    (setq hebbot--thinking-timer nil))
+  (when hebbot--thinking-overlay
+    (delete-overlay hebbot--thinking-overlay)
+    (setq hebbot--thinking-overlay nil)))
 
 (defun hebbot-ui--insert-token (token)
   "Insert streaming TOKEN at the stream insert marker."
   (when hebbot--stream-insert-marker
+    (when hebbot--thinking-overlay
+      (hebbot-ui--stop-thinking))
     (let ((inhibit-read-only t))
       (save-excursion
         (goto-char hebbot--stream-insert-marker)
@@ -122,10 +186,15 @@ Stores session-id, makes streamed text read-only, optionally shows sources."
       (put-text-property (point-min) (marker-position hebbot--input-marker)
                          'read-only t))
     ;; Reset streaming state
+    (hebbot-ui--stop-thinking)
     (setq hebbot--streaming-p nil)
     (setq hebbot--curl-process nil)
     (setq hebbot--stream-insert-marker nil)
     (force-mode-line-update)
+    ;; Move cursor to input area
+    (goto-char (+ (marker-position hebbot--input-marker) 2))
+    (let ((win (get-buffer-window (current-buffer))))
+      (when win (set-window-point win (point))))
     ;; Show sources
     (when (and hebbot-show-sources sources (> (length sources) 0))
       (hebbot-ui--display-sources sources))))
@@ -141,6 +210,7 @@ Stores session-id, makes streamed text read-only, optionally shows sources."
                           'rear-nonsticky '(read-only)))
       (when hebbot--input-marker
         (set-marker hebbot--input-marker (point)))))
+  (hebbot-ui--stop-thinking)
   (setq hebbot--streaming-p nil)
   (setq hebbot--curl-process nil)
   (setq hebbot--stream-insert-marker nil)
@@ -188,10 +258,11 @@ SOURCES is a vector of alists from the ChatResponse."
     (unless input
       (user-error "Nothing to send"))
     ;; Insert user message and clear input area
-    (hebbot-ui--insert-user-message input)
+    (hebbot-ui--insert-user-message (hebbot-ui--make-title input) input)
     (hebbot-ui--clear-input)
     ;; Set up assistant response area
     (hebbot-ui--begin-assistant-message)
+    (hebbot-ui--start-thinking)
     (setq hebbot--streaming-p t)
     (force-mode-line-update)
     ;; Launch streaming request
@@ -255,6 +326,7 @@ Modes: explain, quiz, deep_dive, misconception."
   "Abort the current streaming response."
   (interactive)
   (when hebbot--curl-process
+    (hebbot-ui--stop-thinking)
     (hebbot-api--abort-stream hebbot--curl-process)
     (let ((inhibit-read-only t))
       (save-excursion
