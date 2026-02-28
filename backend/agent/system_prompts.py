@@ -6,6 +6,18 @@ BOOK_NAMES: dict[str, str] = {
     "kandel": "Principles of Neural Science (Kandel et al.)",
 }
 
+FORMAT_INSTRUCTIONS = """\
+Format your response using Emacs org-mode syntax, not Markdown:
+- Bold: *text*
+- Italic: /text/
+- Inline code: ~text~
+- Verbatim: =text=
+- Bullet lists: - item
+- Numbered lists: 1. item
+- Source blocks: #+BEGIN_SRC language\\n...\\n#+END_SRC
+Do not use Markdown syntax (no **double asterisks**, no backtick fences, no # headers).
+Do not include top-level headings in your response; the UI adds those automatically."""
+
 BASE_CONTEXT = """You are Hebbot, an expert tutor in cognitive neuroscience at the graduate level.
 You have access to retrieved passages from the following textbooks: {book_list}.
 Always ground your responses in the provided source material.
@@ -59,7 +71,7 @@ def get_system_prompt(
     base = BASE_CONTEXT.format(book_list=book_list)
     mode_prompt = MODE_PROMPTS.get(mode, MODE_PROMPTS["explain"])
 
-    parts = [base, mode_prompt]
+    parts = [base, mode_prompt, FORMAT_INSTRUCTIONS]
 
     if retrieved_context:
         parts.append(
