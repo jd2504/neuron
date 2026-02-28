@@ -8,13 +8,13 @@
 3. Purves et al. (2018), /Neuroscience/ (6th Ed.)
 
 *Usage:*
-- `M-x hebbot`          Open the chat buffer
-- `M-x hebbot-ingest`   Ingest a PDF into the knowledge base
+- ~M-x hebbot~          Open the chat buffer
+- ~M-x hebbot-ingest~   Ingest a PDF into the knowledge base
 
 In the chat buffer:
-- `RET`       Send input
-- `C-j`       Insert newline
-- `C-c C-m`   Switch study mode
-- `C-c C-s`   Show session stats
-- `C-c C-c`   Abort streaming response
-- `q`         Quit (in conversation area) / self-insert (in input area)
+- ~RET~       Send input
+- ~C-j~       Insert newline
+- ~C-c C-m~   Switch study mode
+- ~C-c C-s~   Show session stats
+- ~C-c C-c~   Abort streaming response
+- ~q~         Quit (in conversation area) / self-insert (in input area)
