@@ -94,6 +94,7 @@ Returns the curl process."
                    :buffer nil
                    :command (list hebbot-curl-executable
                                  "-N" "-s" "-S"
+                                 "--fail-with-body"
                                  "-X" "POST"
                                  "-H" "Content-Type: application/json"
                                  "-d" "@-"
@@ -139,6 +140,7 @@ Accumulates OUTPUT from PROCESS, splits on double newlines, dispatches events."
             ("done"
              (condition-case err
                  (let ((parsed (json-read-from-string event-data)))
+                   (process-put process 'hebbot-done-received t)
                    (funcall (process-get process 'hebbot-on-done) parsed))
                (error
                 (funcall (process-get process 'hebbot-on-error)
@@ -163,7 +165,8 @@ Accumulates OUTPUT from PROCESS, splits on double newlines, dispatches events."
                  (if (string-empty-p remaining)
                      (format "Connection failed (curl exit %d)" exit-code)
                    (string-trim remaining))))
-       ((not (string-empty-p remaining))
+       ((and (not (string-empty-p remaining))
+             (not (process-get process 'hebbot-done-received)))
         (funcall (process-get process 'hebbot-on-error)
                  "Stream ended with incomplete data")))))
   (process-put process 'hebbot-sse-buffer nil))

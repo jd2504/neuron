@@ -71,11 +71,15 @@ async def chat(req: ChatRequest, request: Request):
     session.mode = req.mode
 
     # Hybrid search for relevant chunks
-    chunks = hybrid_search(
-        query=req.message,
-        top_k=8,
-        book_filter=req.book_filter,
-    )
+    try:
+        chunks = hybrid_search(
+            query=req.message,
+            top_k=8,
+            book_filter=req.book_filter,
+        )
+    except Exception:
+        logger.exception("Hybrid search failed, proceeding without context")
+        chunks = []
 
     # Build system prompt with retrieved context
     context_text = _build_context(chunks)

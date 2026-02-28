@@ -32,8 +32,11 @@ async def lifespan(app: FastAPI):
     app.state.session_manager = SessionManager(settings.session_abs_path)
 
     # Build BM25 index from existing Chroma data (if any)
-    count = build_bm25_index()
-    logger.info("BM25 index: %d documents at startup", count)
+    try:
+        count = build_bm25_index()
+        logger.info("BM25 index: %d documents at startup", count)
+    except Exception:
+        logger.exception("BM25 index build failed (Chroma may be unavailable)")
 
     yield
 

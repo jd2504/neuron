@@ -9,7 +9,10 @@
       "WebSearch",
       "WebFetch(domain:geminibyexample.com)",
       "WebFetch(domain:docs.trychroma.com)",
-      "WebFetch(domain:googleapis.github.io)"
+      "WebFetch(domain:googleapis.github.io)",
+      "Bash(.venv/bin/python3:*)",
+      "Bash(curl:*)",
+      "Bash(pgrep:*)"
     ]
   }
 }

@@ -2,24 +2,31 @@
 
 import logging
 
-import chromadb
-
 from backend.config import get_settings
-from backend.ingestion.chunker import Chunk
-from backend.ingestion.embedder import LocalEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "hebbot_textbooks"
 UPSERT_BATCH_SIZE = 500
 
-_client: chromadb.ClientAPI | None = None
-_collection: chromadb.Collection | None = None
+_client = None
+_collection = None
+_chromadb = None
 
 
-def _get_client() -> chromadb.ClientAPI:
+def _import_chromadb():
+    """Lazy-import chromadb to allow the app to start even if it's broken."""
+    global _chromadb
+    if _chromadb is None:
+        import chromadb
+        _chromadb = chromadb
+    return _chromadb
+
+
+def _get_client():
     global _client
     if _client is None:
+        chromadb = _import_chromadb()
         settings = get_settings()
         path = str(settings.chroma_abs_path)
         logger.info("Initializing ChromaDB PersistentClient at %s", path)
@@ -27,10 +34,11 @@ def _get_client() -> chromadb.ClientAPI:
     return _client
 
 
-def get_collection() -> chromadb.Collection:
+def get_collection():
     """Get or create the textbook collection with local embeddings."""
     global _collection
     if _collection is None:
+        from backend.ingestion.embedder import LocalEmbeddingFunction
         client = _get_client()
         ef = LocalEmbeddingFunction()
         _collection = client.get_or_create_collection(
@@ -46,7 +54,7 @@ def get_collection() -> chromadb.Collection:
     return _collection
 
 
-def upsert_chunks(chunks: list[Chunk]) -> int:
+def upsert_chunks(chunks: list) -> int:
     """Upsert chunks into Chroma in batches of 500. Returns count upserted."""
     collection = get_collection()
     total = 0
